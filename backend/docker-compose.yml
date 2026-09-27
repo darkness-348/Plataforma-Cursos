@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  base_datos_postgres:
+    image: postgres:16-alpine
+    container_name: postgres_academico
+    restart: always
+    environment:
+      POSTGRES_DB: academico_db
+      POSTGRES_USER: academico_user
+      POSTGRES_PASSWORD: academico_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - datos_postgres:/var/lib/postgresql/data
+      - ../database/esquema.sql:/docker-entrypoint-initdb.d/1_esquema.sql
+      - ../database/datos_iniciales.sql:/docker-entrypoint-initdb.d/2_datos.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U academico_user -d academico_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  servidor_backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: backend_academico
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://academico_user:academico_password@base_datos_postgres:5432/academico_db
+    depends_on:
+      base_datos_postgres:
+        condition: service_healthy
+
+volumes:
+  datos_postgres:
